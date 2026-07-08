@@ -10,13 +10,66 @@ import { Inventory } from './modules/inventory.js';
 import { raycastBlock } from './modules/interaction.js';
 import { BLOCK, getBlock, PLACEABLE } from './modules/blocks.js';
 
-const RENDER_RADIUS = 5; // chunks
+const RENDER_RADIUS = 4; // chunks (kept modest so the page is responsive)
 
 let renderer, scene, camera, world, player, clouds, daynight, hand, inventory;
 let sun, ambient, hemi;
 let blocker, playBtn, fpsEl;
 let last = performance.now();
 const dir = new THREE.Vector3();
+let ready = false;       // becomes true once async init finished
+let started = false;     // becomes true after the PLAY click requests pointer lock
+
+// Show an error overlay on screen so failures are visible (instead of a dead PLAY button).
+function showError(err) {
+  console.error(err);
+  let box = document.getElementById('errorBox');
+  if (!box) {
+    box = document.createElement('pre');
+    box.id = 'errorBox';
+    Object.assign(box.style, {
+      position: 'fixed', left: '8px', bottom: '8px', right: '8px',
+      maxHeight: '40vh', overflow: 'auto', padding: '10px',
+      background: 'rgba(120,0,0,0.9)', color: '#fff', fontSize: '12px',
+      whiteSpace: 'pre-wrap', zIndex: 100, fontFamily: 'monospace',
+    });
+    document.body.appendChild(box);
+  }
+  box.textContent = 'Error: ' + (err && err.stack ? err.stack : err);
+  // hide the blocker so the error is visible
+  const b = document.getElementById('blocker');
+  if (b) b.style.display = 'none';
+}
+
+// Attach the PLAY button wiring as early as possible; if init isn't done yet,
+// we tell the user to wait a moment instead of doing nothing.
+function wirePlayButton() {
+  const btn = document.getElementById('playBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    if (!ready) {
+      // init still running (pre-generating chunks) — reflect that on the button
+      btn.textContent = 'LOADING…';
+      btn.disabled = true;
+      // poll until ready, then click again
+      const wait = setInterval(() => {
+        if (ready) { clearInterval(wait); btn.disabled = false; btn.textContent = 'PLAY'; btn.click(); }
+      }, 80);
+      return;
+    }
+    if (started) return; // already entered the game
+    // try to enter: lock pointer; the pointerlockchange handler sets `started`.
+    const b = document.getElementById('blocker');
+    if (b) b.classList.add('hidden');
+    try {
+      player.requestLock();
+    } catch (e) {
+      showError(e);
+      started = false;
+      if (b) b.classList.remove('hidden');
+    }
+  });
+}
 
 function init() {
   renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
@@ -44,12 +97,8 @@ function init() {
   scene.add(hemi);
 
   world = new World(2024);
-  // pre-generate chunks around spawn
-  for (let cx = -RENDER_RADIUS; cx <= RENDER_RADIUS; cx++)
-    for (let cz = -RENDER_RADIUS; cz <= RENDER_RADIUS; cz++)
-      scene.add(world.loadChunk(cx, cz).group);
 
-  // spawn position
+  // player + spawn
   const sx = 0, sz = 0;
   const sy = world.surfaceHeight(sx, sz) + 3;
   player = new Player(world, camera, renderer.domElement);
@@ -70,15 +119,21 @@ function init() {
   playBtn = document.getElementById('playBtn');
   fpsEl = document.getElementById('fps');
 
-  playBtn.addEventListener('click', () => {
-    blocker.classList.add('hidden');
-    player.requestLock();
-  });
-
   document.addEventListener('pointerlockchange', () => {
     const locked = document.pointerLockElement === renderer.domElement;
     player.pointerLocked = locked;
-    if (!locked && !inventory.open) blocker.classList.remove('hidden');
+    if (locked) {
+      started = true;
+      const b = document.getElementById('blocker');
+      if (b) b.classList.add('hidden');
+    } else {
+      // pointer lock exited (Esc or failed) — re-show menu unless inventory is open
+      started = false;
+      if (!inventory.open) {
+        const b = document.getElementById('blocker');
+        if (b) b.classList.remove('hidden');
+      }
+    }
   });
 
   window.addEventListener('resize', onResize);
@@ -90,7 +145,30 @@ function init() {
     if (n >= 1 && n <= 9) setTimeout(refreshHand, 0);
   });
 
+  // Start the render loop immediately so the world renders behind the menu,
+  // and stream/highlight chunks over the first few frames (keeps the page responsive).
   animate(performance.now());
+
+  // Pre-generate the chunks around spawn in small async batches so we don't
+  // freeze the page for seconds (which made the PLAY button look dead).
+  let pending = [];
+  for (let cx = -RENDER_RADIUS; cx <= RENDER_RADIUS; cx++)
+    for (let cz = -RENDER_RADIUS; cz <= RENDER_RADIUS; cz++)
+      pending.push([cx, cz]);
+  const BATCH = 4;
+  let i = 0;
+  (function genBatch() {
+    const end = Math.min(i + BATCH, pending.length);
+    for (; i < end; i++) {
+      const [cx, cz] = pending[i];
+      if (!world.getChunk(cx, cz)) scene.add(world.loadChunk(cx, cz).group);
+    }
+    if (i < pending.length) {
+      setTimeout(genBatch, 0);
+    } else {
+      ready = true;
+    }
+  })();
 }
 
 function refreshHand() {
@@ -237,8 +315,17 @@ function animate(now) {
   }
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+// Wire the PLAY button as early as possible and run init with a try/catch
+// so any startup error is shown on screen instead of leaving the button dead.
+(function bootstrap() {
+  const start = () => {
+    wirePlayButton();
+    try { init(); }
+    catch (e) { showError(e); }
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();

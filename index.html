@@ -170,8 +170,14 @@
     <button class="play" id="playBtn">PLAY</button>
   </div>
 
-  <!-- Three.js from CDN -->
-  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <!-- Three.js (ES module build) via import map. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
 
   <script type="module" src="js/main.js"></script>
 </body>

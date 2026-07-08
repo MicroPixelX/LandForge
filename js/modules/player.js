@@ -64,8 +64,20 @@ export class Player {
   }
 
   requestLock() {
-    this.dom.requestPointerLock?.();
-    this.pointerLocked = true;
+    try {
+      const r = this.dom.requestPointerLock?.();
+      // Modern browsers return a Promise that can reject (e.g. if called too
+      // soon after a previous exit, or the document isn't focused). Swallow it
+      // so we don't get an unhandled rejection that looks like a button failure.
+      if (r && typeof r.catch === 'function') {
+        r.catch((err) => { console.warn('pointer lock failed:', err); this.pointerLocked = false; });
+      } else {
+        this.pointerLocked = true;
+      }
+    } catch (e) {
+      console.warn('pointer lock error:', e);
+      this.pointerLocked = false;
+    }
   }
 
   releaseLock() {
