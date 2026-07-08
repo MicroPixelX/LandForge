@@ -14,11 +14,8 @@ export class DayNight {
     this.t = 0.28; // start mid-morning (0..1, 0=midnight)
   }
 
-  // returns 0..1 sun factor: 1 full day, 0 full night
+  // returns a sun-elevation estimate: ~1 at noon, ~0 at midnight, negative below horizon.
   get dayFactor() {
-    // map t to angle; sun overhead at t=0.5 (noon)
-    const ang = (this.t - 0.25) * Math.PI * 2; // noon -> PI/2? adjust
-    // Use elevation model: elevation = sin(2*pi*(t-0.25))
     const e = Math.sin((this.t - 0.25) * Math.PI * 2);
     return MathUtilsClamp(e, -0.2, 1);
   }
@@ -26,8 +23,8 @@ export class DayNight {
   update(dt) {
     this.t = (this.t + dt / DAY_LENGTH) % 1;
 
-    // sun angle across the sky
-    const ang = this.t * Math.PI * 2; // 0..2pi
+    // sun position orbits overhead; t=0.5 -> noon (sun high in sky at +Y)
+    const ang = this.t * Math.PI * 2;
     const sunDir = new THREE.Vector3(
       Math.cos(ang),
       Math.sin(ang),
@@ -46,34 +43,21 @@ export class DayNight {
     this.hemi.intensity = 0.2 + daylight * 0.5;
 
     // sun color: warm at sunrise/sunset, white at noon
-    const warm = MathUtilsClamp(1 - daylight, 0, 1);
-    this.sun.color.setRGB(
-      1.0,
-      0.75 + 0.25 * daylight,
-      0.5 + 0.5 * daylight
-    );
+    this.sun.color.setRGB(1.0, 0.75 + 0.25 * daylight, 0.5 + 0.5 * daylight);
 
-    // sky color lerp from dawn/day to dusk/night
+    // sky color: night -> day, with a sunset tinge near the horizon
     const night = new THREE.Color(0x0a0f25);
     const dayCol = new THREE.Color(0x87ceeb);
     const sunset = new THREE.Color(0xff8c42);
 
-    const col = new THREE.Color();
-    if (daylight > 0.0) {
-      // near horizon (twilight) add sunset tint
-      const twi = MathUtilsClamp(1 - Math.abs(day - 0.15), 0, 1) * 0.0; // disabled tint flat
-      col.copy(night).lerp(dayCol, MathUtilsClamp(daylight, 0, 1));
-    } else {
-      col.copy(night);
-    }
-    // add sunset tinge when sun near horizon
+    const col = new THREE.Color().copy(night).lerp(dayCol, daylight);
+    // strongest sunset tint when the sun is near the horizon
     const horizon = MathUtilsClamp(1 - Math.abs(day) * 3, 0, 1);
     if (day > -0.05) col.lerp(sunset, horizon * 0.35);
 
     this.scene.background = col;
     if (this.scene.fog) {
       this.scene.fog.color.copy(col);
-      // less fog at night
       const fogDensity = 0.55 + daylight * 0.4;
       this.scene.fog.near = 30 * fogDensity;
       this.scene.fog.far = 160 * fogDensity;
@@ -81,7 +65,7 @@ export class DayNight {
 
     if (this.clouds) this.clouds.setOpacity(0.15 + daylight * 0.75);
 
-    // ambient color shifts slightly cooler at night
+    // hemisphere light tint shifts cooler at night
     this.hemi.color.copy(day > 0 ? dayCol : night);
   }
 

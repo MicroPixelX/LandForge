@@ -1,7 +1,7 @@
 // main.js — wires together world, player, inventory, clouds, day/night, hand, and the render loop.
 import THREE from '../vendor/three-shim.js';
 import { World } from './modules/world.js';
-import { Chunk, SIZE, HEIGHT } from './modules/chunk.js';
+import { SIZE } from './modules/chunk.js';
 import { Player, PLAYER_DIMS } from './modules/player.js';
 import { Clouds } from './modules/clouds.js';
 import { DayNight } from './modules/daynight.js';
@@ -19,6 +19,8 @@ let last = performance.now();
 const dir = new THREE.Vector3();
 let ready = false;       // becomes true once async init finished
 let started = false;     // becomes true after the PLAY click requests pointer lock
+// refs set by setupMouseAction() so the render loop can drive continuous break/place
+let _tryBreak = () => {}, _tryPlace = () => {}, _getCooldown = () => 0, _setCooldown = () => {};
 
 // Show an error overlay on screen so failures are visible (instead of a dead PLAY button).
 function showError(err) {
@@ -114,6 +116,18 @@ function init() {
   inventory = new Inventory();
   refreshHand();
   inventory.onChange = refreshHand;
+  // Opening the inventory exits pointer lock (so the cursor can click slots);
+  // closing it re-acquires pointer lock to resume play.
+  inventory.onToggle = (open) => {
+    if (open) {
+      // exit pointer lock to interact with the inventory UI
+      if (player.pointerLocked) player.releaseLock();
+      // keep `started` true so the game view stays hidden — we re-lock on close
+    } else if (started) {
+      // resume play
+      player.requestLock();
+    }
+  };
 
   blocker = document.getElementById('blocker');
   playBtn = document.getElementById('playBtn');
@@ -124,12 +138,15 @@ function init() {
     player.pointerLocked = locked;
     if (locked) {
       started = true;
+      inventory.setInGame(true);
       const b = document.getElementById('blocker');
       if (b) b.classList.add('hidden');
     } else {
-      // pointer lock exited (Esc or failed) — re-show menu unless inventory is open
-      started = false;
+      // pointer lock exited (Esc or failed). Only re-show the menu if the
+      // inventory isn't the reason we exited (otherwise closing the inventory
+      // would pop the start menu back up).
       if (!inventory.open) {
+        started = false;
         const b = document.getElementById('blocker');
         if (b) b.classList.remove('hidden');
       }
@@ -138,12 +155,6 @@ function init() {
 
   window.addEventListener('resize', onResize);
   setupMouseAction();
-
-  // Number keys swap hotbar selection handled in inventory; keep hand refreshed
-  document.addEventListener('keydown', (e) => {
-    const n = parseInt(e.code.replace('Digit', ''), 10);
-    if (n >= 1 && n <= 9) setTimeout(refreshHand, 0);
-  });
 
   // Start the render loop immediately so the world renders behind the menu,
   // and stream/highlight chunks over the first few frames (keeps the page responsive).
@@ -228,11 +239,12 @@ function setupMouseAction() {
   // continuous holding right mouse to place repeatedly
   document.addEventListener('mouseup', (e) => { if (e.button === 2) placeCooldown = 0; });
 
-  // continuous hold for break: handle in animate via player.mouse flags
-  window._tryBreak = tryBreak;
-  window._tryPlace = tryPlace;
-  window._placeCooldown = () => placeCooldown;
-  window._setPlaceCooldown = (v) => { placeCooldown = v; };
+  // expose the place/break closures (and cooldown state) to the render loop
+  // via module-scoped refs instead of polluting `window`.
+  _tryBreak = tryBreak;
+  _tryPlace = tryPlace;
+  _getCooldown = () => placeCooldown;
+  _setCooldown = (v) => { placeCooldown = v; };
 }
 
 function onResize() {
@@ -283,17 +295,17 @@ function animate(now) {
     if (player.mouse.left) {
       lastBreak += dt;
       if (lastBreak > 0.28) {
-        window._tryBreak();
+        _tryBreak();
         lastBreak = 0;
       }
     } else lastBreak = 1;
     if (player.mouse.right) {
-      window._setPlaceCooldown(window._placeCooldown() - dt);
-      if (window._placeCooldown() <= 0) {
-        window._tryPlace();
-        window._setPlaceCooldown(0.18);
+      _setCooldown(_getCooldown() - dt);
+      if (_getCooldown() <= 0) {
+        _tryPlace();
+        _setCooldown(0.18);
       }
-    } else window._setPlaceCooldown(0);
+    } else _setCooldown(0);
   }
 
   // clouds and hand always update

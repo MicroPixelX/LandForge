@@ -11,6 +11,7 @@ function tex(name) {
 }
 
 export function defineBlocks() {
+  if (_cache) return _cache;
   let id = 0;
   const blocks = [];
   function add(name, faces, opts = {}) {

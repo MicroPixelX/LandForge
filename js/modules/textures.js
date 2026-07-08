@@ -2,6 +2,8 @@
 // Each tile function returns the SAME canvas instance on repeat calls so that the
 // world atlas and the block textures reference identical image data.
 
+import THREE from '../vendor/three-shim.js';
+
 const SIZE = 16;
 const cache = new Map();
 
@@ -182,9 +184,8 @@ function ore(name, colorDark, colorLight) {
   return c;
 }
 
-export function tileCanvas(name) { return TILE_BUILDERS[name](); }
+  export function tileCanvas(name) { return TILE_BUILDERS[name](); }
 
-import THREE from '../vendor/three-shim.js';
 export function canvasToTexture(c) {
   const tex = new THREE.CanvasTexture(c);
   tex.magFilter = THREE.NearestFilter;

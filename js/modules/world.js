@@ -2,7 +2,7 @@
 import THREE from '../vendor/three-shim.js';
 import { Chunk, SIZE, HEIGHT } from './chunk.js';
 import { fbm2D, hash3 } from './noise.js';
-import { BLOCK, getBlock } from './blocks.js';
+import { BLOCK } from './blocks.js';
 import * as Tex from './textures.js';
 
 export const TILE = 16;
@@ -176,7 +176,8 @@ export class World {
   }
 
   _placeTree(chunk, x, y, z) {
-    const trunkH = 4 + Math.floor(Math.random() * 2);
+    // Deterministic pseudo-random so trees look the same across page reloads.
+    const trunkH = 4 + Math.floor(hash3(x, y, z, this.seed + 13) * 2);
     for (let i = 0; i < trunkH; i++) {
       const yy = y + i;
       if (yy < HEIGHT) chunk.blocks[yy * SIZE * SIZE + z * SIZE + x] = BLOCK.LOG;
@@ -189,7 +190,8 @@ export class World {
           if (lx === 0 && lz === 0 && ly < 1) continue;
           const px = x + lx, py = topY + ly, pz = z + lz;
           if (py < 0 || py >= HEIGHT || px < 0 || px >= SIZE || pz < 0 || pz >= SIZE) continue;
-          if (Math.abs(lx) === r && Math.abs(lz) === r && Math.random() < 0.6) continue;
+          // round the canopy a bit by trimming some corners deterministically
+          if (Math.abs(lx) === r && Math.abs(lz) === r && hash3(px, py, pz, this.seed + 17) < 0.6) continue;
           const cur = chunk.blocks[py * SIZE * SIZE + pz * SIZE + px];
           if (cur === BLOCK.AIR) chunk.blocks[py * SIZE * SIZE + pz * SIZE + px] = BLOCK.LEAVES;
         }

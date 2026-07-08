@@ -19,14 +19,14 @@ export class Inventory {
     this.hotbar[6] = BLOCK.LEAVES;
     this.hotbar[7] = BLOCK.SAND;
     this.hotbar[8] = BLOCK.WATER;
-    // ore presets plus an empty
+    // ore presets in the inventory grid
     this.inv[0] = BLOCK.COAL;
     this.inv[1] = BLOCK.IRON;
     this.inv[2] = BLOCK.DIAMOND;
 
-    this.counts = new Map(); // not heavily used; placeholder counts of Infinity
     this.open = false;
-    this.onChange = null;
+    this.onChange = null;   // called whenever the selected/hotbar/inventory config changes
+    this.onToggle = null;    // called with (open:boolean) when the inventory opens/closes
 
     this._buildUI();
   }
@@ -37,39 +37,57 @@ export class Inventory {
     this._renderHotbar();
     this._renderInventory();
 
-    // number keys and e to toggle handled in main; here we expose methods.
+    // Number keys select hotbar slots; E toggles the inventory; Esc closes it.
+    // We only handle these when pointer lock is engaged (i.e. while in-game) so
+    // the menu page's key events aren't hijacked.
     document.addEventListener('keydown', (e) => {
+      if (!this._inGame) return;
       const n = parseInt(e.code.replace('Digit', ''), 10);
       if (n >= 1 && n <= 9) {
         this.selected = n - 1;
         this._renderHotbar();
+        this.onChange?.();
       }
       if (e.code === 'KeyE') {
+        e.preventDefault();
+        // don't allow toggling while a modifier makes 'e' a typed character
         this.toggle();
       }
       if (this.open && e.code === 'Escape') this.toggle(false);
     });
   }
 
+  // Called by main when the game starts/stops so the key handler knows context.
+  setInGame(v) { this._inGame = v; }
+
   toggle(force = null) {
     const next = force === null ? !this.open : force;
     this.open = next;
     this.invEl.classList.toggle('open', this.open);
+    this.onToggle?.(this.open);
   }
 
   selectedBlock() {
     return this.hotbar[this.selected];
   }
 
-  // returns block id adjacent to currently clicked (for placing)
-  // used by main to read which slot is selected
-  setSelected(i) { this.selected = i; this._renderHotbar(); }
+  setSelected(i) { this.selected = i; this._renderHotbar(); this.onChange?.(); }
 
-  // cycle pick-block on right click harvest: add dropped ore block to inventory
+  // Add a freshly-broken block to the inventory: put it in the first matching
+  // hotbar slot, else first empty hotbar slot, else first empty inventory slot.
   addBlock(id) {
-    // not heavily tracked; just light feedback
+    if (id == null || id === BLOCK.AIR) return;
+    const hotIdx = this.hotbar.indexOf(id);
+    if (hotIdx >= 0) { return; } // already accessible
+    const emptyHot = this.hotbar.indexOf(null);
+    if (emptyHot >= 0) { this.hotbar[emptyHot] = id; }
+    else {
+      const emptyInv = this.inv.indexOf(null);
+      if (emptyInv >= 0) this.inv[emptyInv] = id;
+    }
     this._renderHotbar();
     this._renderInventory();
+    this.onChange?.();
   }
 
   _slotEl(blockId, withKey, keyIndex, count) {
@@ -104,7 +122,7 @@ export class Inventory {
     this.hotbarEl.innerHTML = '';
     this.hotbar.forEach((id, i) => {
       const el = this._slotEl(id, i === this.selected, i, null);
-      el.addEventListener('mouseenter', () => { this.selected = i; this._renderHotbar(); });
+      el.addEventListener('mouseenter', () => { this.selected = i; this._renderHotbar(); this.onChange?.(); });
       this.hotbarEl.appendChild(el);
     });
   }

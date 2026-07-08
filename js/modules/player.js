@@ -9,7 +9,6 @@ const GRAVITY = 28;
 const JUMP_V = 8.5;
 const MOVE_SPEED = 4.6;
 const SPRINT_MULT = 1.7;
-const WATER_DRAG = 0.7;
 
 export class Player {
   constructor(world, camera, domElement) {
@@ -83,6 +82,9 @@ export class Player {
   releaseLock() {
     document.exitPointerLock?.();
     this.pointerLocked = false;
+    // clear stuck inputs so the player doesn't drift after losing focus
+    this.keys = {};
+    this.mouse = { left: false, right: false };
   }
 
   // collide a single axis moving by `amount` in small steps; returns true if blocked.
