@@ -62,7 +62,7 @@ export class Chunk {
   }
 
   set(x, y, z, v) {
-    if (y < 0 || y >= HEIGHT) return;
+    if (y < 0 || y >= HEIGHT || x < 0 || x >= SIZE || z < 0 || z >= SIZE) return;
     this.blocks[idx(x, y, z)] = v;
     this.dirty = true;
   }
@@ -94,7 +94,7 @@ export class Chunk {
             const nx = x + face.dir[0], ny = y + face.dir[1], nz = z + face.dir[2];
             let neighbor;
             if (nx < 0 || nx >= SIZE || nz < 0 || nz >= SIZE) {
-              neighbor = this.world.getBlock(wx + face.dir[0], ny + face.dir[1], wz + face.dir[2]);
+              neighbor = this.world.getBlock(wx + face.dir[0], ny, wz + face.dir[2]);
             } else {
               neighbor = this.get(nx, ny, nz);
             }

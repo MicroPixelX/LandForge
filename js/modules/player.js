@@ -64,6 +64,8 @@ export class Player {
   }
 
   requestLock() {
+    // Optimistically mark locked; the pointerlockchange event will correct it.
+    this.pointerLocked = true;
     try {
       const r = this.dom.requestPointerLock?.();
       // Modern browsers return a Promise that can reject (e.g. if called too
@@ -71,8 +73,6 @@ export class Player {
       // so we don't get an unhandled rejection that looks like a button failure.
       if (r && typeof r.catch === 'function') {
         r.catch((err) => { console.warn('pointer lock failed:', err); this.pointerLocked = false; });
-      } else {
-        this.pointerLocked = true;
       }
     } catch (e) {
       console.warn('pointer lock error:', e);

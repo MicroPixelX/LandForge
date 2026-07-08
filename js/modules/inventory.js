@@ -1,7 +1,7 @@
 // inventory.js — hotbar + full inventory UI.
 // Holds a list of block ids assigned to slots. Hotbar is 9 slots; inventory 9x3.
 // Block break adds to inventory; selecting a slot chooses the placeable block.
-import { BLOCK, getBlock, PLACEABLE } from './blocks.js';
+import { BLOCK, getBlock } from './blocks.js';
 import * as Tex from './textures.js';
 
 export class Inventory {

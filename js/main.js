@@ -178,7 +178,6 @@ function refreshHand() {
 }
 
 function setupMouseAction() {
-  let leftWasDown = false, rightWasDown = false;
   const origin = new THREE.Vector3();
   function tryBreak() {
     origin.copy(camera.position);
@@ -200,9 +199,13 @@ function setupMouseAction() {
     if (!hit) return;
     const id = inventory.selectedBlock();
     if (id == null) return;
+    if (!PLACEABLE.includes(id)) return; // reject air/bedrock/non-placeable
     const [x, y, z] = hit.pos;
     const n = hit.normal;
     const px = x + n[0], py = y + n[1], pz = z + n[2];
+    // only place into an empty (air or water) cell
+    const target = world.getBlock(px, py, pz);
+    if (target !== BLOCK.AIR && target !== BLOCK.WATER) return;
     // don't place inside the player
     const pminX = Math.floor(player.pos.x - PLAYER_DIMS.PLAYER_W);
     const pmaxX = Math.floor(player.pos.x + PLAYER_DIMS.PLAYER_W);
@@ -262,7 +265,7 @@ function ensureChunksAround(cx, cz) {
   }
 }
 
-let lastBreak = 0, lastPlace = 0;
+let lastBreak = 0;
 let fpsAcc = 0, fpsCount = 0, fpsTimer = 0;
 
 function animate(now) {

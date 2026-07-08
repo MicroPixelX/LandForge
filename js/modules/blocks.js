@@ -25,6 +25,7 @@ export function defineBlocks() {
       solid: opts.solid !== false,
     };
     blocks[def.id] = def;
+    BLOCK_ID_BY_NAME[name] = def.id;
     return def.id;
   }
 
@@ -62,3 +63,11 @@ export const BLOCK = {
 // Block-name -> BLOCK id (used for UI labels)
 export const BLOCK_ID_BY_NAME = {};
 export function getName(id) { return getBlock(id)?.name ?? ''; }
+
+// Block ids the player can legitimately select & place in the world.
+// Excludes AIR and BEDROCK (air is invisible; bedrock is meant to be permanent).
+export const PLACEABLE = [
+  BLOCK.GRASS, BLOCK.DIRT, BLOCK.STONE, BLOCK.COBBLE, BLOCK.PLANKS,
+  BLOCK.LOG, BLOCK.LEAVES, BLOCK.SAND, BLOCK.WATER,
+  BLOCK.COAL, BLOCK.IRON, BLOCK.DIAMOND,
+];
