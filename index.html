@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voxelcraft</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #87ceeb;
+      font-family: monospace;
+      user-select: none;
+    }
+    canvas { display: block; }
+
+    /* Crosshair */
+    #crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 22px;
+      height: 22px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10;
+    }
+    #crosshair::before, #crosshair::after {
+      content: "";
+      position: absolute;
+      background: rgba(255,255,255,0.85);
+      box-shadow: 0 0 2px rgba(0,0,0,0.8);
+    }
+    #crosshair::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+    #crosshair::after  { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
+
+    /* Hotbar */
+    #hotbar {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      background: rgba(0,0,0,0.45);
+      border: 2px solid rgba(255,255,255,0.25);
+      border-radius: 4px;
+      z-index: 10;
+    }
+    .slot {
+      width: 52px;
+      height: 52px;
+      background: rgba(120,120,120,0.35);
+      border: 2px solid rgba(60,60,60,0.6);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .slot.active { border-color: #fff; box-shadow: 0 0 8px #fff; }
+    .slot canvas { width: 40px; height: 40px; image-rendering: pixelated; }
+    .slot .count {
+      position: absolute;
+      right: 2px;
+      bottom: 0px;
+      font-size: 14px;
+      color: #fff;
+      text-shadow: 1px 1px 0 #000;
+    }
+    .slot .key {
+      position: absolute;
+      left: 3px;
+      top: 1px;
+      font-size: 10px;
+      color: #ddd;
+      text-shadow: 1px 1px 0 #000;
+    }
+
+    /* Inventory overlay */
+    #inventory {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      gap: 4px;
+      padding: 10px;
+      background: rgba(40,40,40,0.92);
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 6px;
+      z-index: 20;
+      flex-wrap: wrap;
+      width: calc(9 * 60px + 80px);
+    }
+    #inventory.open { display: flex; }
+    #inventory .slot { width: 56px; height: 56px; }
+    #inventory .slot canvas { width: 44px; height: 44px; cursor: pointer; }
+    #inventory .slot:hover { border-color: #8cf; }
+
+    #hint {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      color: #fff;
+      text-shadow: 1px 1px 0 #000;
+      font-size: 13px;
+      z-index: 10;
+      line-height: 1.5;
+      pointer-events: none;
+    }
+    #fps {
+      position: fixed;
+      top: 8px;
+      right: 8px;
+      color: #fff;
+      text-shadow: 1px 1px 0 #000;
+      font-size: 13px;
+      z-index: 10;
+      pointer-events: none;
+    }
+    #blocker {
+      position: fixed;
+      inset: 0;
+      background: rgba(20,25,40,0.85);
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      color: #fff;
+      text-align: center;
+    }
+    #blocker h1 { font-size: 42px; margin: 0 0 6px; letter-spacing: 3px; }
+    #blocker p { margin: 4px 0; opacity: 0.9; }
+    #blocker .play {
+      margin-top: 14px;
+      padding: 10px 28px;
+      background: #5b8a3e;
+      border: 2px solid #2c3e1b;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 18px;
+      cursor: pointer;
+      color: #fff;
+    }
+    #blocker .play:hover { background: #6fa249; }
+    #blocker.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="crosshair"></div>
+
+  <div id="hotbar"></div>
+
+  <div id="inventory"></div>
+
+  <div id="hint">
+    WASD move &middot; Space jump &middot; Mouse look &middot; L+R click &middot; 1-9 select &middot; E inventory
+  </div>
+  <div id="fps"></div>
+
+  <div id="blocker">
+    <h1>VOXELCRAFT</h1>
+    <p>WASD to move, Mouse to look, Click to break/place blocks</p>
+    <p>1-9 to select hotbar item &middot; E for inventory</p>
+    <button class="play" id="playBtn">PLAY</button>
+  </div>
+
+  <!-- Three.js from CDN -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
