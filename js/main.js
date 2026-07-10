@@ -139,6 +139,7 @@ function init() {
     if (locked) {
       started = true;
       inventory.setInGame(true);
+      window.__VOXELCRAFT_READY__ = true;
       const b = document.getElementById('blocker');
       if (b) b.classList.add('hidden');
     } else {
@@ -178,6 +179,7 @@ function init() {
       setTimeout(genBatch, 0);
     } else {
       ready = true;
+      window.__VOXELCRAFT_READY__ = true;
     }
   })();
 }
